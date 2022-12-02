@@ -207,7 +207,6 @@ char *generate_config(const char *config_name)
 		g_free(tmp);
 	}
 
-	g_slist_free(iter);
 	g_slist_free(peers);
 
  out:

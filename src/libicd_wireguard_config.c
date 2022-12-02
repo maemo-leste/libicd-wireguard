@@ -116,7 +116,7 @@ char *get_active_config(void)
 char *generate_config(const char *config_name)
 {
 	GConfClient *gconf;
-	gchar config[8192];
+	gchar *config = NULL;
 	gchar *address, *dns, *privatekey, *configoverride;
 	GSList *peers, *iter;
 
@@ -157,16 +157,16 @@ char *generate_config(const char *config_name)
 	if (privatekey == NULL || address == NULL)
 		goto out;
 
-	memset(config, '\0', sizeof(config));
-	strncat(config, "[Interface]", 12);
-	strncat(config, "\nPrivateKey = ", 15);
-	strncat(config, privatekey, strlen(privatekey));
-	strncat(config, "\nAddress = ", 12);
-	strncat(config, address, strlen(address));
+	config = g_strconcat(
+			 "[Interface]"
+			 "\nPrivateKey = ", privatekey,
+			 "\nAddress = ", address,
+			 NULL);
 	if (dns) {
-		strncat(config, "\nDNS = ", 8);
-		strncat(config, dns, strlen(dns));
-		strncat(config, "\n", 2);
+		gchar *tmp = config;
+
+		config = g_strconcat(tmp, "\nDNS = ", dns, "\n", NULL);
+		g_free(tmp);
 	}
 
 	/* Peers configuration */
@@ -180,6 +180,8 @@ char *generate_config(const char *config_name)
 	for (iter = peers; iter; iter = iter->next) {
 		gchar *gc_peer_ips = g_strjoin("/", iter->data, GC_PEER_IPS, NULL);
 		gchar *peer_ips = gconf_client_get_string(gconf, gc_peer_ips, NULL);
+		gchar *tmp;
+
 		g_free(gc_peer_ips);
 
 		gchar *gc_endpoint = g_strjoin("/", iter->data, GC_PEER_ENDPOINT, NULL);
@@ -195,14 +197,14 @@ char *generate_config(const char *config_name)
 		if (peer_ips == NULL || endpoint == NULL || pubkey == NULL)
 			continue;
 
-		strncat(config, "\n[Peer]", 8);
-		strncat(config, "\nPublicKey = ", 14);
-		strncat(config, pubkey, strlen(pubkey));
-		strncat(config, "\nEndPoint = ", 13);
-		strncat(config, endpoint, strlen(endpoint));
-		strncat(config, "\nAllowedIPs = ", 15);
-		strncat(config, peer_ips, strlen(peer_ips));
-		strncat(config, "\n", 2);
+		tmp = config;
+		config = g_strconcat(
+				 tmp, "\n[Peer]",
+				 "\nPublicKey = ", pubkey,
+				 "\nEndPoint = ", endpoint,
+				 "\nAllowedIPs = ", peer_ips, "\n",
+				 NULL);
+		g_free(tmp);
 	}
 
 	g_slist_free(iter);
@@ -212,8 +214,5 @@ char *generate_config(const char *config_name)
 	g_free(cfgpath);
 	g_object_unref(gconf);
 
-	if (strlen(config) > 0)
-		return g_strdup(config);
-
-	return NULL;
+	return config;
 }
